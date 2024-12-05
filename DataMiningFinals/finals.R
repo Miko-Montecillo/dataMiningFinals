@@ -1,0 +1,288 @@
+library(shiny)
+library(bslib)
+library(readr)  # for reading CSV
+library(dplyr)  # for data manipulation
+library(ggplot2)  # for visualization
+library(stringr)  # for string manipulation
+library(gridExtra)  # for combining plots
+library(tidyr)  # for separate_rows
+
+# Print working directory and data path
+cat("\n========== NETFLIX DATA LOADING ==========\n")
+cat("📂 Working Directory:", getwd(), "\n")
+cat("📄 Data File:", file.path(getwd(), "data/NetflixDataKaggle.csv"), "\n")
+
+# Read the Netflix data
+netflix_data <- read_csv("data/NetflixDataKaggle.csv", show_col_types = FALSE)
+
+# Print data information
+cat("\n========== DATASET OVERVIEW ==========\n")
+cat("📊 Total Entries:", nrow(netflix_data), "\n")
+cat("🏷️  Total Columns:", ncol(netflix_data), "\n\n")
+
+cat("Column Names and Types:\n")
+cat("----------------------\n")
+for(col in names(netflix_data)) {
+  cat(sprintf("%-20s: %s\n", col, typeof(netflix_data[[col]])))
+}
+
+cat("\n========== CONTENT SUMMARY ==========\n")
+# Calculate content type counts once
+content_types <- table(netflix_data$type)
+cat("🎬 Movies:", content_types["Movie"], "\n")
+cat("📺 TV Series:", content_types["TV Series"], "\n")
+
+cat("\n========== SAMPLE ENTRIES ==========\n")
+cat("First 5 titles in dataset:\n")
+cat("-------------------------\n")
+sample_data <- head(netflix_data, 5) %>% 
+  select(title, type, releaseYear, imdbAverageRating)
+for(i in 1:nrow(sample_data)) {
+  cat(sprintf("%d. %s (%s, %d) - IMDB: %.1f\n",
+              i,
+              sample_data$title[i],
+              sample_data$type[i],
+              sample_data$releaseYear[i],
+              sample_data$imdbAverageRating[i]))
+}
+
+# Prepare data for genre analysis
+genre_data <- netflix_data %>% 
+  select(type, genres) %>% 
+  filter(!is.na(genres)) %>% 
+  group_by(type, genres) %>% 
+  summarise(count = n(), .groups = 'drop') %>% 
+  arrange(type, desc(count))
+
+# Get total counts
+total_movies <- content_types["Movie"]
+total_tv <- content_types["TV Series"]
+
+# Get top 5 genres for each type
+top_genres <- genre_data %>% 
+  group_by(type) %>% 
+  slice_head(n = 5)
+
+# UI Definition
+ui <- fluidPage(
+  theme = bs_theme(version = 5),
+  tags$head(
+    tags$style(HTML("
+      body { background-color: #221F1F; }
+      .container-fluid { background-color: #221F1F; }
+      .nav-tabs { border-bottom: 1px solid #E50914; }
+      .nav-tabs .nav-link { color: #F5F5F1; }
+      .nav-tabs .nav-link.active { 
+        color: #E50914; 
+        font-weight: bold;
+        background-color: #221F1F;
+        border-color: #E50914;
+        border-bottom: 2px solid #E50914;
+      }
+      .nav-tabs .nav-link:hover { 
+        border-color: #E50914;
+        color: #E50914;
+      }
+      h2, h3, h4 { color: #F5F5F1 !important; }
+      p, li { color: #F5F5F1; }
+      /* Add styles for verbatimTextOutput */
+      pre.shiny-text-output {
+        color: #F5F5F1;
+        background-color: #1A1A1A;
+        border: none;
+      }
+    "))
+  ),
+  div(style = "background-color: #000000; padding: 20px 0; margin-bottom: 30px;",
+      titlePanel(div(style = "color: #E50914; text-align: center; font-weight: bold;", "Netflix Content Analysis"))
+  ),
+  fluidRow(
+    column(12,
+           tabsetPanel(
+             # Tab 1
+             tabPanel("About Data",
+                      fluidRow(
+                        column(10, offset = 1,
+                               div(style = "padding: 20px;",
+                                   # Overview Card
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
+                                       h3("Dataset Overview", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       p("This comprehensive Netflix dataset contains detailed information about movies and TV shows available on the platform. It includes content added up until 2021, providing insights into Netflix's evolving content library."),
+                                       p(strong("Total Entries:"), "14,284 titles")
+                                   ),
+                                   
+                                   # Content Distribution Card
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
+                                       h3("Content Distribution", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       div(style = "display: flex; justify-content: space-around;",
+                                           div(
+                                             h4("Movies", style = "color: #E50914;"),
+                                             p("9,673 titles")
+                                           ),
+                                           div(
+                                             h4("TV Shows", style = "color: #E50914;"),
+                                             p("4,611 titles")
+                                           )
+                                       )
+                                   ),
+                                   
+                                   # Key Features Card
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
+                                       h3("Available Information", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       tags$ul(
+                                         tags$li(strong("Content Type: "), "Classification as Movie or TV Show"),
+                                         tags$li(strong("Genres: "), "Multiple genres per title"),
+                                         tags$li(strong("IMDb Ratings: "), "Average viewer ratings from IMDb"),
+                                         tags$li(strong("Release Year: "), "Original release date of content"),
+                                         tags$li(strong("Duration: "), "Length in minutes (movies) or seasons (TV shows)")
+                                       )
+                                   ),
+                                   
+                                   # Analysis Focus Card
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
+                                       h3("Analysis Focus", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       p("Our analysis explores three main aspects:"),
+                                       tags$ul(
+                                         tags$li(strong("Genre Distribution: "), "Understanding the most common content categories"),
+                                         tags$li(strong("IMDb Ratings Analysis: "), "Examining content quality and audience reception"),
+                                         tags$li(strong("Future Media Prediction: "), "Analyzing trends for content strategy insights")
+                                       )
+                                   )
+                               )
+                        )
+                      )),
+             
+             # Tab 2
+             tabPanel("Question 1: Genre Distribution",
+                      fluidRow(
+                        column(10, offset = 1,
+                               div(style = "padding: 20px;",
+                                   h2("What are the Most common Movie and TV Show Genres on Netflix?", 
+                                      style = "color: #F5F5F1; text-align: center; margin-bottom: 30px;"),
+                                   
+                                   # Movie Card
+                                   div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
+                                       h3("Movies Analysis", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       div(style = "margin-bottom: 15px;",
+                                           plotOutput("moviePlot", height = "400px")
+                                       ),
+                                       div(style = "background-color: #1A1A1A; padding: 15px; border-radius: 5px;",
+                                           h4("Top 5 Movie Genres", style = "color: #F5F5F1; margin-bottom: 10px;"),
+                                           verbatimTextOutput("movieGenres", placeholder = TRUE)
+                                       )
+                                   ),
+                                   
+                                   # TV Series Card
+                                   div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
+                                       h3("TV Series Analysis", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       div(style = "margin-bottom: 15px;",
+                                           plotOutput("tvPlot", height = "400px")
+                                       ),
+                                       div(style = "background-color: #1A1A1A; padding: 15px; border-radius: 5px;",
+                                           h4("Top 5 TV Series Genres", style = "color: #F5F5F1; margin-bottom: 10px;"),
+                                           verbatimTextOutput("tvGenres", placeholder = TRUE)
+                                       )
+                                   )
+                               )
+                        )
+                      )),
+             
+             # Tab 3
+             tabPanel("Question 2: IMDb Ratings",
+                      fluidRow(
+                        column(10, offset = 1,
+                               h3("IMDb Ratings Analysis (Coming Soon)")
+                        )
+                      )),
+             
+             # Tab 4
+             tabPanel("Question 3: Future Media",
+                      fluidRow(
+                        column(10, offset = 1,
+                               h3("Future Media Consumption Prediction (Coming Soon)")
+                        )
+                      ))
+           )
+    )
+  )
+)
+
+# Server Definition
+server <- function(input, output) {
+  # Movies plot
+  output$moviePlot <- renderPlot({
+    movies_plot <- genre_data %>% 
+      filter(type == "Movie") %>% 
+      slice_head(n = 10) %>% 
+      ggplot(aes(x = reorder(genres, count), y = count)) +
+      geom_bar(stat = "identity", fill = "#E50914") +
+      coord_flip() +
+      labs(title = "Top 10 Movie Genres",
+           subtitle = paste("Total Movies:", format(total_movies, big.mark=",")),
+           x = "Genre",
+           y = "Number of Movies") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", color = "#F5F5F1"),
+        plot.subtitle = element_text(size = 12, color = "#F5F5F1"),
+        axis.title = element_text(size = 12, color = "#F5F5F1"),
+        axis.text = element_text(size = 10, color = "#F5F5F1"),
+        panel.grid.major = element_line(color = "#2D2D2D"),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "#2D2D2D", color = NA),
+        panel.background = element_rect(fill = "#2D2D2D", color = NA)
+      )
+    movies_plot
+  })
+  
+  # TV Series plot
+  output$tvPlot <- renderPlot({
+    tv_plot <- genre_data %>% 
+      filter(type == "TV Series") %>%  
+      slice_head(n = 10) %>% 
+      ggplot(aes(x = reorder(genres, count), y = count)) +
+      geom_bar(stat = "identity", fill = "#E50914") +
+      coord_flip() +
+      labs(title = "Top 10 TV Series Genres",
+           subtitle = paste("Total TV Series:", format(total_tv, big.mark=",")),
+           x = "Genre",
+           y = "Number of TV Series") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", color = "#F5F5F1"),
+        plot.subtitle = element_text(size = 12, color = "#F5F5F1"),
+        axis.title = element_text(size = 12, color = "#F5F5F1"),
+        axis.text = element_text(size = 10, color = "#F5F5F1"),
+        panel.grid.major = element_line(color = "#2D2D2D"),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "#2D2D2D", color = NA),
+        panel.background = element_rect(fill = "#2D2D2D", color = NA)
+      )
+    tv_plot
+  })
+  
+  # Movie genres text output
+  output$movieGenres <- renderText({
+    paste(
+      "📽️ Total Movies:", format(total_movies, big.mark=","), "\n\n",
+      paste(sprintf("%d. %s (%s movies)", 1:5,
+                    top_genres$genres[top_genres$type == "Movie"],
+                    format(top_genres$count[top_genres$type == "Movie"], big.mark=",")),
+            collapse = "\n")
+    )
+  })
+  
+  # TV Series genres text output
+  output$tvGenres <- renderText({
+    paste(
+      "📺 Total TV Series:", format(total_tv, big.mark=","), "\n\n",
+      paste(sprintf("%d. %s (%s series)", 1:5,
+                    top_genres$genres[top_genres$type == "TV Series"],
+                    format(top_genres$count[top_genres$type == "TV Series"], big.mark=",")),
+            collapse = "\n")
+    )
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
