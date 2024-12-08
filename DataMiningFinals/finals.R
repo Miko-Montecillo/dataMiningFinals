@@ -16,7 +16,7 @@ cat("📄 Data File:", file.path(getwd(), "data/NetflixDataKaggle.csv"), "\n")
 netflix_data <- read_csv("data/NetflixDataKaggle.csv", show_col_types = FALSE)
 
 # Print data information
-cat("\n========== DATASET OVERVIEW ==========\n")
+cat("\n=============== DATASET OVERVIEW ================\n")
 cat("📊 Total Entries:", nrow(netflix_data), "\n")
 cat("🏷️  Total Columns:", ncol(netflix_data), "\n\n")
 
@@ -47,7 +47,7 @@ for(i in 1:nrow(sample_data)) {
 }
 
 # Add Genre Analysis
-cat("\n========== GENRE DISTRIBUTION SUMMARY ==========\n")
+cat("\n========== GENRE DISTRIBUTION SUMMARY ===========\n")
 
 # Movies Top 5 Genres
 cat("\n🎬 Top 5 Movie Genres:\n")
@@ -87,7 +87,7 @@ genre_data %>%
 
 
 # Add IMDb Ratings Analysis
-cat("\n========== IMDB RATINGS SUMMARY ==========\n")
+cat("\n============= IMDB RATINGS SUMMARY ==============\n")
 
 # Overall ratings statistics
 overall_stats <- netflix_data %>%
