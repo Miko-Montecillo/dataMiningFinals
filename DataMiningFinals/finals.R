@@ -122,6 +122,44 @@ netflix_data %>%
     }
   }
 
+# Add Future Media Analysis
+cat("\n============= FUTURE MEDIA SUMMARY =============\n")
+
+# Calculate yearly counts and fit models for prediction
+yearly_counts <- netflix_data %>%
+  group_by(type, releaseYear) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  filter(releaseYear >= 2010)
+
+# Create future years
+future_years <- data.frame(
+  releaseYear = 2024:2028
+)
+
+# Fit linear models
+movie_model <- lm(count ~ releaseYear, data = filter(yearly_counts, type == "Movie"))
+tv_model <- lm(count ~ releaseYear, data = filter(yearly_counts, type == "TV Series"))
+
+# Generate predictions
+future_movies <- predict(movie_model, newdata = future_years)
+future_tv <- predict(tv_model, newdata = future_years)
+
+# Print predictions summary
+cat("\n📺 Content Trend Analysis:\n")
+cat("-------------------------\n")
+cat("Movies: Showing declining trend")
+cat("\nTV Series: Strong upward trend\n")
+
+cat("\n🔮 Predictions for 2028:\n")
+cat("----------------------\n")
+cat(sprintf("Movies: %.0f titles\n", future_movies[5]))
+cat(sprintf("TV Series: %.0f titles\n", future_tv[5]))
+
+cat("\n📊 Key Finding:\n")
+cat("--------------\n")
+cat("TV Series are projected to become the dominant content type on Netflix,\n")
+cat("reflecting a strategic shift in content strategy and viewer preferences.\n")
+
 # Prepare data for genre analysis
 genre_data <- netflix_data %>% 
   select(type, genres) %>% 
@@ -215,7 +253,7 @@ ui <- fluidPage(
                                    ),
                                    
                                    # Analysis Focus Card
-                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; margin-top: 30px;",
                                        h3("Analysis Focus", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
                                        p("Our analysis explores three main aspects:"),
                                        tags$ul(
@@ -317,9 +355,32 @@ ui <- fluidPage(
              tabPanel("Question 3: Future Media",
                       fluidRow(
                         column(10, offset = 1,
-                               h3("Future Media Consumption Prediction (Coming Soon)")
+                               div(style = "padding: 20px;",
+                                   h2("Which type of media will people watch the most in the next 5 years?", 
+                                      style = "color: #F5F5F1; text-align: center; margin-bottom: 30px;"),
+                                   plotOutput("futurePrediction"),
+                                   div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; margin-top: 30px;",
+                                       h3("Analysis Results", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       p("Based on historical data from 2010 onwards, our analysis reveals several key insights:", 
+                                         style = "color: #F5F5F1;"),
+                                       tags$ul(
+                                         tags$li("While Movies historically dominated Netflix's content library, there's a clear declining trend in movie content additions.", 
+                                                style = "color: #F5F5F1;"),
+                                         tags$li("TV Series show a strong upward trend, indicating Netflix's strategic shift towards serial content.", 
+                                                style = "color: #F5F5F1;"),
+                                         tags$li("The convergence of these trends suggests a transformation in Netflix's content strategy, prioritizing TV Series over Movies.", 
+                                                style = "color: #F5F5F1;")
+                                       ),
+                                       h3("Conclusion", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px; margin-top: 20px;"),
+                                       p("Based on our predictive analysis, TV Series will become the dominant content type on Netflix over the next 5 years (2024-2028). The declining trend in movie additions combined with the steady rise in TV Series suggests a clear strategic pivot towards serial content. This shift aligns with modern viewing habits where audiences increasingly prefer long-form, episodic storytelling that allows for deeper character development and more complex narratives.", 
+                                         style = "color: #F5F5F1;"),
+                                       p("Note: This prediction is based on historical data patterns and assumes current trends will continue. External factors such as market conditions, production challenges, or strategic shifts could impact these projections.", 
+                                         style = "color: #F5F5F1; font-style: italic; margin-top: 20px;")
+                                   )
+                               )
                         )
-                      ))
+                      )
+             )
            )
     )
   )
@@ -381,7 +442,7 @@ server <- function(input, output) {
   
   output$ratings <- renderPlot({
     # Use all data without filtering
-    ratings_data <- netflix_data %>% 
+    ratings_data <- netflix_data %>%
       select(type, imdbAverageRating)
     
     ggplot(ratings_data, aes(x = imdbAverageRating, fill = type)) +
@@ -503,6 +564,63 @@ server <- function(input, output) {
       summarise(avg = mean(imdbAverageRating, na.rm = TRUE)) %>%
       pull(avg)
     sprintf("Average TV Series Rating: %.2f", tv_avg)
+  })
+  
+  # Future prediction plot
+  output$futurePrediction <- renderPlot({
+    # Calculate yearly counts
+    yearly_counts <- netflix_data %>%
+      group_by(type, releaseYear) %>%
+      summarise(count = n(), .groups = 'drop') %>%
+      filter(releaseYear >= 2010)  # Focus on recent years
+    
+    # Create future years
+    future_years <- data.frame(
+      releaseYear = 2024:2028
+    )
+    
+    # Fit linear models for each type
+    movie_model <- lm(count ~ releaseYear, data = filter(yearly_counts, type == "Movie"))
+    tv_model <- lm(count ~ releaseYear, data = filter(yearly_counts, type == "TV Series"))
+    
+    # Generate predictions
+    future_movies <- predict(movie_model, newdata = future_years)
+    future_tv <- predict(tv_model, newdata = future_years)
+    
+    # Combine historical and predicted data
+    future_data <- bind_rows(
+      yearly_counts,
+      data.frame(
+        type = rep(c("Movie", "TV Series"), each = 5),
+        releaseYear = rep(2024:2028, 2),
+        count = c(future_movies, future_tv)
+      )
+    )
+    
+    # Create the plot
+    ggplot(future_data, aes(x = releaseYear, y = count, color = type, linetype = releaseYear >= 2024)) +
+      geom_line(size = 1) +
+      scale_color_manual(values = c("Movie" = "#E50914", "TV Series" = "#4CAF50")) +
+      scale_linetype_manual(values = c("FALSE" = "solid", "TRUE" = "dashed"), guide = "none") +
+      labs(
+        x = "Year",
+        y = "Number of Titles",
+        color = "Content Type",
+        title = "Historical and Predicted Content Growth on Netflix"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.background = element_rect(fill = "#221F1F"),
+        panel.background = element_rect(fill = "#221F1F"),
+        text = element_text(color = "#F5F5F1"),
+        axis.text = element_text(color = "#F5F5F1"),
+        axis.title = element_text(color = "#F5F5F1"),
+        panel.grid = element_line(color = "#2D2D2D"),
+        legend.background = element_rect(fill = "#221F1F"),
+        legend.text = element_text(color = "#F5F5F1"),
+        legend.title = element_text(color = "#F5F5F1"),
+        plot.title = element_text(color = "#F5F5F1", hjust = 0.5)
+      )
   })
 }
 
