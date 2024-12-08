@@ -46,6 +46,82 @@ for(i in 1:nrow(sample_data)) {
               sample_data$imdbAverageRating[i]))
 }
 
+# Add Genre Analysis
+cat("\n========== GENRE DISTRIBUTION SUMMARY ==========\n")
+
+# Movies Top 5 Genres
+cat("\n🎬 Top 5 Movie Genres:\n")
+cat("---------------------\n")
+genre_data <- netflix_data %>% 
+  select(type, genres) %>% 
+  filter(!is.na(genres)) %>% 
+  group_by(type, genres) %>% 
+  summarise(count = n(), .groups = 'drop') %>% 
+  arrange(type, desc(count))
+genre_data %>%
+  filter(type == "Movie") %>%
+  slice_head(n = 5) %>%
+  {
+    for(i in 1:nrow(.)) {
+      cat(sprintf("%d. %s (%s titles)\n",
+                  i,
+                  .$genres[i],
+                  format(.$count[i], big.mark=",")))
+    }
+  }
+
+# TV Series Top 5 Genres
+cat("\n📺 Top 5 TV Series Genres:\n")
+cat("------------------------\n")
+genre_data %>%
+  filter(type == "TV Series") %>%
+  slice_head(n = 5) %>%
+  {
+    for(i in 1:nrow(.)) {
+      cat(sprintf("%d. %s (%s titles)\n",
+                  i,
+                  .$genres[i],
+                  format(.$count[i], big.mark=",")))
+    }
+  }
+
+
+# Add IMDb Ratings Analysis
+cat("\n========== IMDB RATINGS SUMMARY ==========\n")
+
+# Overall ratings statistics
+overall_stats <- netflix_data %>%
+  summarise(
+    avg_rating = mean(imdbAverageRating, na.rm = TRUE),
+    median_rating = median(imdbAverageRating, na.rm = TRUE),
+    min_rating = min(imdbAverageRating, na.rm = TRUE),
+    max_rating = max(imdbAverageRating, na.rm = TRUE)
+  )
+
+cat("\n📊 Overall IMDb Ratings:\n")
+cat("------------------------\n")
+cat(sprintf("Average Rating: %.2f\n", overall_stats$avg_rating))
+cat(sprintf("Median Rating:  %.2f\n", overall_stats$median_rating))
+cat(sprintf("Range:         %.1f - %.1f\n", overall_stats$min_rating, overall_stats$max_rating))
+
+# Ratings by content type
+cat("\n📈 Ratings by Content Type:\n")
+cat("-------------------------")
+netflix_data %>%
+  group_by(type) %>%
+  summarise(
+    avg_rating = mean(imdbAverageRating, na.rm = TRUE),
+    median_rating = median(imdbAverageRating, na.rm = TRUE)
+  ) %>%
+  as.data.frame() %>%
+  {
+    for(i in 1:nrow(.)) {
+      cat(sprintf("\n%s:\n", .[i, "type"]))
+      cat(sprintf("  Average Rating: %.2f\n", .[i, "avg_rating"]))
+      cat(sprintf("  Median Rating:  %.2f\n", .[i, "median_rating"]))
+    }
+  }
+
 # Prepare data for genre analysis
 genre_data <- netflix_data %>% 
   select(type, genres) %>% 
@@ -113,7 +189,7 @@ ui <- fluidPage(
                                    
                                    # Content Distribution Card
                                    div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
-                                       h3("Content Distribution", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       h3("Content Distribution", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
                                        div(style = "display: flex; justify-content: space-around;",
                                            div(
                                              h4("Movies", style = "color: #E50914;"),
@@ -128,7 +204,7 @@ ui <- fluidPage(
                                    
                                    # Key Features Card
                                    div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
-                                       h3("Available Information", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       h3("Available Information", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
                                        tags$ul(
                                          tags$li(strong("Content Type: "), "Classification as Movie or TV Show"),
                                          tags$li(strong("Genres: "), "Multiple genres per title"),
@@ -140,7 +216,7 @@ ui <- fluidPage(
                                    
                                    # Analysis Focus Card
                                    div(style = "background-color: #2D2D2D; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
-                                       h3("Analysis Focus", style = "color: #F5F5F1; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       h3("Analysis Focus", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
                                        p("Our analysis explores three main aspects:"),
                                        tags$ul(
                                          tags$li(strong("Genre Distribution: "), "Understanding the most common content categories"),
@@ -187,11 +263,53 @@ ui <- fluidPage(
                         )
                       )),
              
-             # Tab 3
+             # Tab 3: IMDb Ratings Analysis
              tabPanel("Question 2: IMDb Ratings",
                       fluidRow(
                         column(10, offset = 1,
-                               h3("IMDb Ratings Analysis (Coming Soon)")
+                               div(style = "padding: 20px;",
+                                   h2("How do IMDb Ratings Compare Between Movies and TV Shows?", 
+                                      style = "color: #F5F5F1; text-align: center; margin-bottom: 30px;"),
+                                   
+                                   # Combined Ratings Distribution Card
+                                   div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-bottom: 20px;",
+                                       h3("Combined IMDb Ratings Distribution", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       div(style = "margin-bottom: 15px;",
+                                           plotOutput("ratings", height = "400px")
+                                       ),
+                                       div(style = "text-align: center; color: #F5F5F1;",
+                                           verbatimTextOutput("combinedAvgRating")
+                                       )
+                                   ),
+                                   
+                                   # Separate Distributions Row
+                                   fluidRow(
+                                     # Movies Distribution Card
+                                     column(6,
+                                            div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
+                                                h3("Movies Ratings Distribution", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                                div(style = "margin-bottom: 15px;",
+                                                    plotOutput("moviesRatings", height = "300px")
+                                                ),
+                                                div(style = "text-align: center; color: #F5F5F1;",
+                                                    verbatimTextOutput("movieAvgRating")
+                                                )
+                                            )
+                                     ),
+                                     # TV Series Distribution Card
+                                     column(6,
+                                            div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);",
+                                                h3("TV Series Ratings Distribution", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                                div(style = "margin-bottom: 15px;",
+                                                    plotOutput("tvRatings", height = "300px")
+                                                ),
+                                                div(style = "text-align: center; color: #F5F5F1;",
+                                                    verbatimTextOutput("tvAvgRating")
+                                                )
+                                            )
+                                     )
+                                   )
+                               )
                         )
                       )),
              
@@ -261,6 +379,88 @@ server <- function(input, output) {
     tv_plot
   })
   
+  output$ratings <- renderPlot({
+    # Use all data without filtering
+    ratings_data <- netflix_data %>% 
+      select(type, imdbAverageRating)
+    
+    ggplot(ratings_data, aes(x = imdbAverageRating, fill = type)) +
+      geom_histogram(binwidth = 0.5, alpha = 0.7, position = "identity", color = "white") +
+      scale_fill_manual(values = c("Movie" = "#E50914", "TV Series" = "#564D4D")) +
+      labs(title = "Distribution of IMDb Ratings for TV Series and Movies",
+           subtitle = paste("Total Content:", format(nrow(ratings_data), big.mark = ",")),
+           x = "IMDb Average Rating",
+           y = NULL,
+           fill = "Media Type") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 16, face = "bold", color = "#F5F5F1"),
+        plot.subtitle = element_text(size = 12, color = "#F5F5F1"),
+        axis.title = element_text(size = 12, color = "#F5F5F1"),
+        axis.text.x = element_text(size = 10, color = "#F5F5F1"),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "#2D2D2D"),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "#2D2D2D", color = NA),
+        panel.background = element_rect(fill = "#2D2D2D", color = NA),
+        legend.background = element_rect(fill = "#2D2D2D", color = NA),
+        legend.text = element_text(color = "#F5F5F1"),
+        legend.title = element_text(color = "#F5F5F1")
+      )
+  })
+  
+  # Movies only ratings plot
+  output$moviesRatings <- renderPlot({
+    movies_data <- netflix_data %>% 
+      filter(type == "Movie") %>%
+      select(imdbAverageRating)
+    
+    ggplot(movies_data, aes(x = imdbAverageRating)) +
+      geom_histogram(binwidth = 0.5, fill = "#E50914", alpha = 0.7, color = "white") +
+      labs(title = "Movies IMDb Ratings Distribution",
+           subtitle = paste("Total Movies:", format(nrow(movies_data), big.mark = ",")),
+           x = "IMDb Average Rating",
+           y = NULL) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 14, face = "bold", color = "#F5F5F1"),
+        plot.subtitle = element_text(size = 10, color = "#F5F5F1"),
+        axis.title = element_text(size = 10, color = "#F5F5F1"),
+        axis.text.x = element_text(size = 8, color = "#F5F5F1"),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "#2D2D2D"),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "#2D2D2D", color = NA),
+        panel.background = element_rect(fill = "#2D2D2D", color = NA)
+      )
+  })
+  
+  # TV Series only ratings plot
+  output$tvRatings <- renderPlot({
+    tv_data <- netflix_data %>% 
+      filter(type == "TV Series") %>%
+      select(imdbAverageRating)
+    
+    ggplot(tv_data, aes(x = imdbAverageRating)) +
+      geom_histogram(binwidth = 0.5, fill = "#564D4D", alpha = 0.7, color = "white") +
+      labs(title = "TV Series IMDb Ratings Distribution",
+           subtitle = paste("Total TV Series:", format(nrow(tv_data), big.mark = ",")),
+           x = "IMDb Average Rating",
+           y = NULL) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 14, face = "bold", color = "#F5F5F1"),
+        plot.subtitle = element_text(size = 10, color = "#F5F5F1"),
+        axis.title = element_text(size = 10, color = "#F5F5F1"),
+        axis.text.x = element_text(size = 8, color = "#F5F5F1"),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "#2D2D2D"),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "#2D2D2D", color = NA),
+        panel.background = element_rect(fill = "#2D2D2D", color = NA)
+      )
+  })
+  
   # Movie genres text output
   output$movieGenres <- renderText({
     paste(
@@ -281,6 +481,28 @@ server <- function(input, output) {
                     format(top_genres$count[top_genres$type == "TV Series"], big.mark=",")),
             collapse = "\n")
     )
+  })
+  
+  # Average ratings outputs
+  output$combinedAvgRating <- renderText({
+    avg_rating <- mean(netflix_data$imdbAverageRating, na.rm = TRUE)
+    sprintf("Overall Average IMDb Rating: %.2f", avg_rating)
+  })
+  
+  output$movieAvgRating <- renderText({
+    movie_avg <- netflix_data %>%
+      filter(type == "Movie") %>%
+      summarise(avg = mean(imdbAverageRating, na.rm = TRUE)) %>%
+      pull(avg)
+    sprintf("Average Movie Rating: %.2f", movie_avg)
+  })
+  
+  output$tvAvgRating <- renderText({
+    tv_avg <- netflix_data %>%
+      filter(type == "TV Series") %>%
+      summarise(avg = mean(imdbAverageRating, na.rm = TRUE)) %>%
+      pull(avg)
+    sprintf("Average TV Series Rating: %.2f", tv_avg)
   })
 }
 
