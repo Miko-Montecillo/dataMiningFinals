@@ -346,6 +346,13 @@ ui <- fluidPage(
                                                 )
                                             )
                                      )
+                                   ),
+                                   
+                                   # Analysis Description Card
+                                   div(style = "background-color: #2D2D2D; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); margin-top: 20px;",
+                                       h3("Analysis Results", style = "color: #F5F5F1; margin-bottom: 20px; border-bottom: 2px solid #E50914; padding-bottom: 10px;"),
+                                       p("The image presents a visual analysis of IMDb average ratings for movies and TV series. It reveals that while both media types have a similar distribution of ratings, peaking around 6-7, TV series tend to have a slightly higher average rating (7.05) compared to movies (6.31). This suggests that, on average, viewers tend to rate TV series slightly higher than movies on IMDb.",
+                                         style = "color: #F5F5F1; line-height: 1.6; font-size: 16px;")
                                    )
                                )
                         )
